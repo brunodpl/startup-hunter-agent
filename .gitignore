@@ -1,0 +1,20 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.langgraph_api/
+.langgraph-dev*.log
+.tmp-openapi.json
+.firecrawl/
+
+# Artefactos de ejecución (no versionar)
+run_output.json
+output/
+
+# Registro de candidatas ya reportadas: estado local de cada instalación
+.startup-hunter/
+
+# Variante de cache de pytest
+.pytest-cache/
