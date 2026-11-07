@@ -29,9 +29,7 @@ from startup_hunter.schema import DecisionMaker, Enrichment
 
 _SEARCH_ACTOR = "apimaestro/linkedin-companies-search-scraper"
 _DETAIL_ACTOR = "apimaestro/linkedin-company-detail"
-_DECISION_MAKERS_ACTOR = (
-    "apt_marble/linkedin-decision-makers-scraper-ceos-founders-executives"
-)
+_DECISION_MAKERS_ACTOR = "johnvc/linkedin-company-employees-api"
 
 #: Títulos de decisor para una venta de growth (fundador + marketing/growth).
 _DEFAULT_TITLES = [
@@ -81,7 +79,7 @@ def _map_decision_maker(item: dict[str, Any], source_url: str) -> DecisionMaker:
     """
     return DecisionMaker(
         name=_as_text(_first(item, "fullName", "name", "full_name")) or _NO_CONFIRMADO,
-        role=_as_text(_first(item, "currentRole", "jobTitle", "role", "headline"))
+        role=_as_text(_first(item, "currentTitle", "currentRole", "jobTitle", "role", "headline"))
         or _NO_CONFIRMADO,
         linkedin_url=_as_text(
             _first(item, "linkedinUrl", "linkedin_url", "profileUrl", "url")
@@ -225,10 +223,9 @@ class LinkedInEnricher:
     ) -> None:
         """Paso 3 - localizar al decisor. Solo rol y perfil público."""
         run_input: dict[str, Any] = {
-            "searchKeywords": [company.strip()],
-            "jobTitles": _DEFAULT_TITLES,
-            "maxResults": _MAX_DECISION_MAKERS,
-            "deduplicateResults": True,
+            "companies": [enrichment.linkedin_url or company.strip()],
+            "titleKeywords": _DEFAULT_TITLES,
+            "maxResultsPerCompany": _MAX_DECISION_MAKERS,
         }
         if location and location.strip():
             run_input["locations"] = [location.strip()]
@@ -243,10 +240,18 @@ class LinkedInEnricher:
             enrichment.notes.append(f"Búsqueda de decisor fallida: {exc}")
             return
 
-        # Se recorta otra vez por si el actor ignora maxResults.
+        # El actor devuelve filas de error junto a los perfiles; no son decisores.
+        errors = [i for i in items if i.get("error_type") or i.get("error_message")]
+        people = [i for i in items if i not in errors]
+
+        # Se recorta otra vez por si el actor ignora maxResultsPerCompany.
         source = enrichment.linkedin_url or ""
         enrichment.decision_makers = [
-            _map_decision_maker(item, source) for item in items[:_MAX_DECISION_MAKERS]
+            _map_decision_maker(item, source) for item in people[:_MAX_DECISION_MAKERS]
         ]
         if not enrichment.decision_makers:
-            enrichment.notes.append("Sin decisor público identificable.")
+            if errors:
+                detail = errors[0].get("error_message") or errors[0].get("error_type")
+                enrichment.notes.append(f"Búsqueda de decisor fallida: {detail}")
+            else:
+                enrichment.notes.append("Sin decisor público identificable.")
