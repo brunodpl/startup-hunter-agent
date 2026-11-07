@@ -12,7 +12,7 @@ from startup_hunter.schema import DecisionMaker
 
 _SEARCH = "apimaestro/linkedin-companies-search-scraper"
 _DETAIL = "apimaestro/linkedin-company-detail"
-_PEOPLE = "apt_marble/linkedin-decision-makers-scraper-ceos-founders-executives"
+_PEOPLE = "johnvc/linkedin-company-employees-api"
 
 
 class _FakeDataset:
